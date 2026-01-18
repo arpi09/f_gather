@@ -24,15 +24,13 @@ const BakeryListPage = () => {
       setBakeries(data);
       setLoading(false);
 
-      // Then scrape each bakery one by one
-      for (const bakery of data) {
-        // Only scrape if has website or Instagram handle
-        if (bakery.website || bakery.instagramHandle) {
-          await scrapeSingleBakery(bakery._id);
-          // Small delay between scrapes to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
+      // Then scrape all bakeries in parallel
+      const scrapePromises = data
+        .filter(bakery => bakery.website || bakery.instagramHandle)
+        .map(bakery => scrapeSingleBakery(bakery._id));
+      
+      // Wait for all scraping to complete (but don't block UI)
+      await Promise.allSettled(scrapePromises);
     } catch (err) {
       setError('Failed to load bakeries. Please try again later.');
       console.error(err);
