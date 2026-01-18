@@ -1,4 +1,4 @@
-import functions from 'firebase-functions';
+import * as functions from 'firebase-functions';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -29,7 +29,7 @@ const connectDB = async () => {
   }
 
   try {
-    const mongoUri = process.env.MONGODB_URI || functions.config().mongodb?.uri;
+    const mongoUri = process.env.MONGODB_URI;
     
     if (!mongoUri) {
       console.error('MongoDB URI not configured');
