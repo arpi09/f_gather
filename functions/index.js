@@ -7,8 +7,27 @@ import scrapingRoutes from './routes/scraping.js';
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: true }));
+// Security: CORS - only allow requests from your domain
+const allowedOrigins = [
+  'https://fgather-38639.web.app',
+  'https://fgather-38639.firebaseapp.com',
+  'http://localhost:3000', // For development
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // Routes
@@ -59,7 +78,8 @@ export const api = onRequest(
     timeoutSeconds: 300,
     memory: '512MiB',
     secrets: ['MONGODB_URI'],
-    invoker: 'public'
+    invoker: 'public', // Public access (secured by CORS)
+    maxInstances: 10, // Limit concurrent instances to prevent abuse
   },
   app
 );
