@@ -58,7 +58,8 @@ export const api = onRequest(
   {
     timeoutSeconds: 300,
     memory: '512MiB',
-    secrets: ['MONGODB_URI']
+    secrets: ['MONGODB_URI'],
+    invoker: 'public'
   },
   app
 );
