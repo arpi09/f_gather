@@ -8,31 +8,42 @@ const BakeryListPage = () => {
   const [bakeries, setBakeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [scrapingBakeryId, setScrapingBakeryId] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [scrapingBakeryIds, setScrapingBakeryIds] = useState(new Set());
 
   useEffect(() => {
-    loadBakeries();
+    loadAndScrapeAll();
   }, []);
 
-  const loadBakeries = async () => {
+  const loadAndScrapeAll = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // First, load all bakeries
       const data = await bakeryService.getAll();
       setBakeries(data);
+      setLoading(false);
+
+      // Then scrape each bakery one by one
+      for (const bakery of data) {
+        // Only scrape if has website or Instagram handle
+        if (bakery.website || bakery.instagramHandle) {
+          await scrapeSingleBakery(bakery._id);
+          // Small delay between scrapes to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
     } catch (err) {
       setError('Failed to load bakeries. Please try again later.');
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleScrapeBakery = async (bakeryId) => {
+  const scrapeSingleBakery = async (bakeryId) => {
     try {
-      setScrapingBakeryId(bakeryId);
-      setSnackbar({ open: true, message: 'Checking for semlor...', severity: 'info' });
+      // Add to scraping set
+      setScrapingBakeryIds(prev => new Set([...prev, bakeryId]));
 
       const result = await scrapingService.scrapeBakery(bakeryId);
       
@@ -41,33 +52,16 @@ const BakeryListPage = () => {
         prev.map(b => b._id === bakeryId ? result.bakery : b)
       );
 
-      const status = result.bakery.semlorStatus;
-      const message = status === 'confirmed' 
-        ? 'Found semlor!' 
-        : status === 'not_available'
-        ? 'No semlor found'
-        : 'Could not determine semlor availability';
-
-      setSnackbar({ 
-        open: true, 
-        message, 
-        severity: status === 'confirmed' ? 'success' : 'info' 
-      });
-
     } catch (err) {
-      console.error('Scraping error:', err);
-      setSnackbar({ 
-        open: true, 
-        message: 'Failed to check for semlor. Please try again.', 
-        severity: 'error' 
-      });
+      console.error(`Scraping error for bakery ${bakeryId}:`, err);
     } finally {
-      setScrapingBakeryId(null);
+      // Remove from scraping set
+      setScrapingBakeryIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bakeryId);
+        return newSet;
+      });
     }
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -93,18 +87,10 @@ const BakeryListPage = () => {
         </Box>
       ) : (
         <BakeryList 
-          bakeries={bakeries} 
-          onScrape={handleScrapeBakery}
-          scrapingBakeryId={scrapingBakeryId}
+          bakeries={bakeries}
+          scrapingBakeryIds={scrapingBakeryIds}
         />
       )}
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbar.message}
-      />
     </Container>
   );
 };
