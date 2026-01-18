@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bakeryRoutes from './routes/bakeries.js';
+import scrapingRoutes from './routes/scraping.js';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/bakeries', bakeryRoutes);
+app.use('/api/scraping', scrapingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

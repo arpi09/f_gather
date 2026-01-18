@@ -8,10 +8,13 @@ import {
   Box,
   Link,
   IconButton,
+  Button,
 } from '@mui/material';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import LanguageIcon from '@mui/icons-material/Language';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { getInstagramUrl } from '../utils/socialUtils';
 
 /**
@@ -23,17 +26,48 @@ import { getInstagramUrl } from '../utils/socialUtils';
  * @param {string} [props.bakery.location] - Bakery location
  * @param {string} [props.bakery.description] - Bakery description
  * @param {boolean} props.bakery.hasSemlor - Whether bakery offers semlor
+ * @param {string} [props.bakery.semlorStatus] - Semlor status (confirmed/unknown/not_available)
  * @param {string} [props.bakery.instagramHandle] - Instagram handle
  * @param {string} [props.bakery.website] - Website URL
- * @param {string} [props.hasSemlorLabel] - Label for "has semlor" state
- * @param {string} [props.noSemlorLabel] - Label for "no semlor" state
+ * @param {Function} [props.onScrape] - Callback when scrape button is clicked
+ * @param {boolean} [props.isScrapingCallback function to trigger scraping
  */
 const BakeryCard = ({ 
   bakery, 
-  hasSemlorLabel = 'Has Semlor',
-  noSemlorLabel = 'No Semlor'
+  onScrape,
+  isScraping = false,
 }) => {
   const instagramUrl = bakery.instagramHandle ? getInstagramUrl(bakery.instagramHandle) : null;
+
+  // Get status chip properties based on semlorStatus
+  const getStatusChip = () => {
+    const status = bakery.semlorStatus || 'unknown';
+    
+    switch(status) {
+      case 'confirmed':
+        return {
+          label: 'Has Semlor ✓',
+          color: 'success',
+          variant: 'filled',
+        };
+      case 'not_available':
+        return {
+          label: 'No Semlor',
+          color: 'error',
+          variant: 'outlined',
+        };
+      case 'unknown':
+      default:
+        return {
+          label: 'Semlor Status Unknown',
+          color: 'default',
+          variant: 'outlined',
+          icon: <HelpOutlineIcon fontSize="small" />,
+        };
+    }
+  };
+
+  const statusChip = getStatusChip();
 
   return (
     <Card
@@ -53,14 +87,14 @@ const BakeryCard = ({
           <Typography variant="h5" component="h2" fontWeight="bold">
             {bakery.name}
           </Typography>
-          {bakery.hasSemlor && (
-            <Chip
-              label={hasSemlorLabel}
-              color="primary"
-              size="small"
-              sx={{ fontWeight: 'bold' }}
-            />
-          )}
+          <Chip
+            label={statusChip.label}
+            color={statusChip.color}
+            size="small"
+            variant={statusChip.variant}
+            icon={statusChip.icon}
+            sx={{ fontWeight: 'bold' }}
+          />
         </Box>
 
         {bakery.location && (
@@ -78,14 +112,24 @@ const BakeryCard = ({
           </Typography>
         )}
 
-        {!bakery.hasSemlor && (
-          <Chip
-            label={noSemlorLabel}
-            color="default"
-            size="small"
-            variant="outlined"
-            sx={{ mt: 1 }}
-          />
+        {bakery.lastScraped && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+            Last updated: {new Date(bakery.lastScraped).toLocaleDateString()}
+          </Typography>
+        )}
+
+        {bakery.semlorStatus === 'unknown' && (bakery.website || bakery.instagramHandle) && (
+          <Box sx={{ mt: 2 }}>
+            <Button
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={() => onScrape && onScrape(bakery._id)}
+              disabled={isScraping}
+              variant="outlined"
+            >
+              {isScraping ? 'Checking...' : 'Check for Semlor'}
+            </Button>
+          </Box>
         )}
       </CardContent>
 

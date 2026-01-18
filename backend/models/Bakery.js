@@ -17,6 +17,11 @@ const bakerySchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  semlorStatus: {
+    type: String,
+    enum: ['confirmed', 'unknown', 'not_available'],
+    default: 'unknown',
+  },
   location: {
     type: String,
     default: '',
@@ -24,6 +29,14 @@ const bakerySchema = new mongoose.Schema({
   description: {
     type: String,
     default: '',
+  },
+  lastScraped: {
+    type: Date,
+    default: null,
+  },
+  scrapedData: {
+    type: Object,
+    default: {},
   },
   createdAt: {
     type: Date,

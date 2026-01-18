@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, CircularProgress, Alert } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, Alert, Snackbar } from '@mui/material';
 import BakeryList from '../organisms/BakeryList';
 import { bakeryService } from '../services/bakeryService';
+import { scrapingService } from '../services/scrapingService';
 
 const BakeryListPage = () => {
   const [bakeries, setBakeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [scrapingBakeryId, setScrapingBakeryId] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
   useEffect(() => {
     loadBakeries();
@@ -24,6 +27,47 @@ const BakeryListPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleScrapeBakery = async (bakeryId) => {
+    try {
+      setScrapingBakeryId(bakeryId);
+      setSnackbar({ open: true, message: 'Checking for semlor...', severity: 'info' });
+
+      const result = await scrapingService.scrapeBakery(bakeryId);
+      
+      // Update the bakery in the list
+      setBakeries(prev => 
+        prev.map(b => b._id === bakeryId ? result.bakery : b)
+      );
+
+      const status = result.bakery.semlorStatus;
+      const message = status === 'confirmed' 
+        ? 'Found semlor!' 
+        : status === 'not_available'
+        ? 'No semlor found'
+        : 'Could not determine semlor availability';
+
+      setSnackbar({ 
+        open: true, 
+        message, 
+        severity: status === 'confirmed' ? 'success' : 'info' 
+      });
+
+    } catch (err) {
+      console.error('Scraping error:', err);
+      setSnackbar({ 
+        open: true, 
+        message: 'Failed to check for semlor. Please try again.', 
+        severity: 'error' 
+      });
+    } finally {
+      setScrapingBakeryId(null);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -48,8 +92,19 @@ const BakeryListPage = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <BakeryList bakeries={bakeries} />
+        <BakeryList 
+          bakeries={bakeries} 
+          onScrape={handleScrapeBakery}
+          scrapingBakeryId={scrapingBakeryId}
+        />
       )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        message={snackbar.message}
+      />
     </Container>
   );
 };
