@@ -8,11 +8,15 @@ import scrapingRoutes from './routes/scraping.js';
 const app = express();
 
 // Security: CORS - only allow requests from your domain
-const allowedOrigins = [
+const productionOrigins = [
   'https://fgather-38639.web.app',
   'https://fgather-38639.firebaseapp.com',
-  'http://localhost:3000', // For development
 ];
+
+const isDevelopment = process.env.FUNCTIONS_EMULATOR === 'true';
+const allowedOrigins = isDevelopment 
+  ? [...productionOrigins, 'http://localhost:3000']
+  : productionOrigins;
 
 app.use(cors({
   origin: (origin, callback) => {
