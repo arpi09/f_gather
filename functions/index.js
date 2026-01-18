@@ -1,4 +1,4 @@
-import { https } from 'firebase-functions/v1';
+import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -53,5 +53,12 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Export the Express app as a Firebase Function (v1 API)
-export const api = https.onRequest(app);
+// Export the Express app as a Firebase Function (v2 API)
+export const api = onRequest(
+  {
+    timeoutSeconds: 300,
+    memory: '512MiB',
+    secrets: ['MONGODB_URI']
+  },
+  app
+);
