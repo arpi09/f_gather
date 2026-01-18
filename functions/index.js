@@ -5,6 +5,9 @@ import mongoose from 'mongoose';
 import bakeryRoutes from './routes/bakeries.js';
 import scrapingRoutes from './routes/scraping.js';
 
+// Disable buffering to fail fast
+mongoose.set('bufferCommands', false);
+
 const app = express();
 
 // Security: CORS - only allow requests from your domain
@@ -34,53 +37,70 @@ app.use(cors({
 
 app.use(express.json());
 
-// Routes
-app.use('/api/bakeries', bakeryRoutes);
-app.use('/api/scraping', scrapingRoutes);
+// Database connection - EAGER CONNECTION
+let connectionPromise = null;
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Database connection
-let isConnected = false;
-
-const connectDB = async () => {
-  if (isConnected) {
+const getConnection = async () => {
+  if (mongoose.connection.readyState === 1) {
     return;
   }
 
-  try {
+  if (!connectionPromise) {
     const mongoUri = process.env.MONGODB_URI;
     
+    console.log('🔌 Connecting to MongoDB...');
+    
     if (!mongoUri) {
-      console.error('MongoDB URI not configured');
-      return;
+      throw new Error('MONGODB_URI not configured');
     }
 
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+    connectionPromise = mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 75000,
+      connectTimeoutMS: 30000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+    }).then(() => {
+      console.log('✅ MongoDB connected');
+      return mongoose.connection;
+    }).catch((error) => {
+      console.error('❌ MongoDB error:', error.message);
+      connectionPromise = null; // Reset on error
+      throw error;
     });
-    
-    isConnected = true;
-    console.log('MongoDB connected');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
   }
+
+  await connectionPromise;
 };
 
 // Middleware to ensure DB connection
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await getConnection();
+    next();
+  } catch (error) {
+    console.error('DB middleware error:', error.message);
+    res.status(500).json({ error: 'Database connection failed: ' + error.message });
+  }
 });
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Routes
+app.use('/api/bakeries', bakeryRoutes);
+app.use('/api/scraping', scrapingRoutes);
 
 // Export the Express app as a Firebase Function (v2 API)
 export const api = onRequest(
   {
-    timeoutSeconds: 300,
-    memory: '512MiB',
+    timeoutSeconds: 540,
+    memory: '1GiB',
     secrets: ['MONGODB_URI'],
     invoker: 'public', // Public access (secured by CORS)
     maxInstances: 10, // Limit concurrent instances to prevent abuse
